@@ -6,20 +6,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,10 +31,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
@@ -79,11 +86,13 @@ private fun loadDb(ctx: Context): OpcodeDb = OpcodeDbLoader.load(
 @Composable
 fun EditorScreen() {
     val ctx = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var text by remember { mutableStateOf(TextFieldValue(SAMPLE)) }
     var errors by remember { mutableStateOf(listOf<String>()) }
     var status by remember { mutableStateOf("Memuat database opcode...") }
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
     var compiled by remember { mutableStateOf<ByteArray?>(null) }
+    var showAbout by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -134,7 +143,17 @@ fun EditorScreen() {
             .background(Color(0xFF1E1E1E))
             .padding(8.dp),
     ) {
-        Text("SannyDroid - GTA SA Mobile", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(4.dp))
+        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(R.drawable.logo),
+                contentDescription = "Logo $APP_NAME",
+                modifier = Modifier.size(40.dp),
+            )
+            Column(Modifier.padding(start = 10.dp)) {
+                Text(APP_NAME, color = Color.White, fontSize = 18.sp)
+                Text("oleh $DEVELOPER_NAME", color = Color(0xFF9CDCFE), fontSize = 12.sp)
+            }
+        }
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             OutlinedButton(onClick = { openLauncher.launch(arrayOf("*/*")) }) { Text("Buka") }
             OutlinedButton(
@@ -161,6 +180,7 @@ fun EditorScreen() {
                 },
                 modifier = Modifier.padding(start = 6.dp),
             ) { Text("Compile") }
+            TextButton(onClick = { showAbout = true }, modifier = Modifier.padding(start = 6.dp)) { Text("Tentang") }
         }
 
         val keywords = remember(db) { db?.keywords?.keys ?: emptySet() }
@@ -187,5 +207,46 @@ fun EditorScreen() {
         ) {
             for (e in errors) Text(e, color = Color(0xFFF48771), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
+    }
+
+    if (showAbout) {
+        AlertDialog(
+            onDismissRequest = { showAbout = false },
+            confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Tutup") } },
+            dismissButton = {
+                TextButton(onClick = { uriHandler.openUri(SANNY_URL) }) { Text("Situs Sanny Builder") }
+            },
+            icon = {
+                Image(
+                    painter = painterResource(R.drawable.logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(96.dp),
+                )
+            },
+            title = { Text(APP_NAME) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Versi $APP_VERSION")
+                    Text("Pengembang: $DEVELOPER_NAME")
+                    Text("Sumber kode: $REPO_URL", fontSize = 12.sp)
+                    Text(
+                        "\nSumber dan kredit",
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Text(
+                        "Data opcode, daftar perintah, konstanta, template, dan tema warna " +
+                            "berasal dari Sanny Builder 4.2.0 (sannybuilder.com), karya Seemann dan " +
+                            "para kontributornya. Hak cipta data tersebut tetap milik pembuat aslinya.",
+                        fontSize = 12.sp,
+                    )
+                    Text(
+                        "\nSannyDroid adalah proyek tidak resmi dan tidak berafiliasi dengan " +
+                            "Sanny Builder, Rockstar Games, maupun Take-Two Interactive.",
+                        fontSize = 12.sp,
+                    )
+                }
+            },
+        )
     }
 }
