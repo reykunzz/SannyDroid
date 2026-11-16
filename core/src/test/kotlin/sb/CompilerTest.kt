@@ -36,8 +36,8 @@ class CompilerTest {
     @Test
     fun nopWaitTerminate() {
         assertEquals(
-            "0000" + "0100" + "0400" + "930A",
-            compileHex("{\$CLEO .csa}\n0000:\nwait 0\n0A93: terminate_this_custom_script\n"),
+            "0000" + "0100" + "0400" + "4E00",
+            compileHex("{\$CLEO .csa}\n0000:\nwait 0\nterminate_this_custom_script\n"),
         )
     }
 
