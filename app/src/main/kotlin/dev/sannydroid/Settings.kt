@@ -1,7 +1,6 @@
 package dev.sannydroid
 
 import android.content.Context
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 
 const val DEFAULT_THEME = "gta-sa"
@@ -31,15 +30,9 @@ val FONT_OPTIONS = listOf(
     "sans" to "Sans-serif",
     "serif" to "Serif",
     "cursive" to "Cursive",
-    "pricedown" to "GTA PriceDown",
-)
-
-private val PriceDown = FontFamily(
-    Font(R.font.pricedown)
 )
 
 fun fontFor(key: String): FontFamily = when (key) {
-    "pricedown" -> PriceDown
     "sans" -> FontFamily.SansSerif
     "serif" -> FontFamily.Serif
     "cursive" -> FontFamily.Cursive

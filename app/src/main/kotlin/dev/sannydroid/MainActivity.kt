@@ -276,8 +276,11 @@ fun EditorScreen(
             .fillMaxSize()
             .padding(8.dp),
     ) {
+        // Header IDE
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            Modifier.fillMaxWidth()
+                .background(cs.surface, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -288,33 +291,54 @@ fun EditorScreen(
                     fontSize = 10.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 )
-                GtaText(APP_NAME, fontSize = 25.sp, shadow = true)
+                Text(
+                    APP_NAME,
+                    color = cs.onSurface,
+                    fontSize = 25.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                )
+                Text(
+                    "CLEO Script Editor",
+                    color = cs.onSurface.copy(alpha = 0.65f),
+                    fontSize = 12.sp,
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                GtaButton("Buka", onClick = { openLauncher.launch(arrayOf("*/*")) })
-                GtaButton(
-                    "Simpan",
-                    onClick = { saveSource.launch("script.txt") },
-                    modifier = Modifier.padding(start = 5.dp),
-                )
+                TextButton(onClick = { openLauncher.launch(arrayOf("*/*")) }) {
+                    Text("▱", fontSize = 22.sp, color = cs.onSurface)
+                }
+                TextButton(onClick = { saveSource.launch("script.txt") }) {
+                    Text("▣", fontSize = 22.sp, color = cs.onSurface)
+                }
+                TextButton(onClick = { showAppearance = true }) {
+                    Text("⚙", fontSize = 21.sp, color = cs.onSurface)
+                }
             }
         }
 
+        // Tab file dan kontrol editor
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 5.dp)
-                .background(cs.surface, RoundedCornerShape(8.dp))
+            Modifier.fillMaxWidth()
+                .background(Color(0xFF302D38))
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 5.dp, vertical = 2.dp),
+                .padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("main.csa", color = cs.primary, fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 8.dp))
-            TextButton(onClick = { undo() }) { Text("Undo") }
-            TextButton(onClick = { redo() }) { Text("Redo") }
-            TextButton(onClick = { showAppearance = true }) { Text("Tema") }
-            TextButton(onClick = { showAbout = true }) { Text("Tentang") }
+            Text(
+                "</>",
+                color = cs.primary,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 6.dp),
+            )
+            Text(
+                "main.csa",
+                color = Color.White,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f).padding(start = 4.dp),
+            )
+            TextButton(onClick = { undo() }) { Text("↶", color = Color.White, fontSize = 20.sp) }
+            TextButton(onClick = { redo() }) { Text("↻", color = Color.White, fontSize = 20.sp) }
+            TextButton(onClick = { showAppearance = true }) { Text("⚙", color = Color.White) }
         }
 
         val autocompleteSuggestions = remember(text, db) {
@@ -373,70 +397,114 @@ fun EditorScreen(
             }
         }
 
-        BasicTextField(
-            value = text,
-            onValueChange = { value ->
-                if (value.text != text.text) {
-                    while (history.size > historyIndex + 1) {
-                        history.removeAt(history.lastIndex)
-                    }
+        val editorScrollState = rememberScrollState()
+        val lineCount = text.text.count { it == '\\n' } + 1
+        val lineNumbers = (1..lineCount).joinToString("\\n") { it.toString() }
 
-                    history.add(value)
-
-                    if (history.size > 100) {
-                        history.removeAt(0)
-                    }
-
-                    historyIndex = history.lastIndex
-                } else if (history.isNotEmpty()) {
-                    history[historyIndex] = value
-                }
-
-                text = value
-            },
+        Row(
             modifier = Modifier
                 .weight(1f)
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown &&
-                        event.isCtrlPressed
-                    ) {
-                        when (event.key) {
-                            Key.Z -> {
-                                undo()
-                                true
-                            }
-                            Key.Y -> {
-                                redo()
-                                true
-                            }
-                            else -> false
-                        }
-                    } else {
-                        false
-                    }
-                }
                 .fillMaxWidth()
                 .background(theme.background)
-                .padding(8.dp)
-                .verticalScroll(rememberScrollState()),
-            textStyle = TextStyle(
+                .verticalScroll(editorScrollState),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                text = lineNumbers,
+                modifier = Modifier
+                    .background(cs.surfaceVariant)
+                    .padding(start = 8.dp, end = 10.dp, top = 8.dp),
+                color = theme.foreground.copy(alpha = 0.45f),
                 fontFamily = fontFor(fontKey),
                 fontSize = fontSize.sp,
                 lineHeight = (fontSize * 1.4f).sp,
-                color = theme.foreground,
-            ),
-            cursorBrush = SolidColor(theme.foreground),
-            visualTransformation = remember(keywords, constants, theme) { Highlighter(keywords, constants, theme) },
-        )
+            )
 
+            BasicTextField(
+                value = text,
+                onValueChange = { value ->
+                    if (value.text != text.text) {
+                        while (history.size > historyIndex + 1) {
+                            history.removeAt(history.lastIndex)
+                        }
+
+                        history.add(value)
+
+                        if (history.size > 100) {
+                            history.removeAt(0)
+                        }
+
+                        historyIndex = history.lastIndex
+                    } else if (history.isNotEmpty()) {
+                        history[historyIndex] = value
+                    }
+
+                    text = value
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown &&
+                            event.isCtrlPressed
+                        ) {
+                            when (event.key) {
+                                Key.Z -> {
+                                    undo()
+                                    true
+                                }
+                                Key.Y -> {
+                                    redo()
+                                    true
+                                }
+                                else -> false
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                textStyle = TextStyle(
+                    fontFamily = fontFor(fontKey),
+                    fontSize = fontSize.sp,
+                    lineHeight = (fontSize * 1.4f).sp,
+                    color = theme.foreground,
+                ),
+                cursorBrush = SolidColor(theme.foreground),
+                visualTransformation = remember(keywords, constants, theme) {
+                    Highlighter(keywords, constants, theme)
+                },
+            )
+        }
+
+        // Status bar
         Row(
-            Modifier.fillMaxWidth().padding(top = 6.dp),
+            Modifier.fillMaxWidth()
+                .background(Color(0xFF302D38))
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(status, color = cs.onSurface.copy(alpha = 0.7f), fontSize = 11.sp)
+            Text(
+                "${errors.size} errors",
+                color = if (errors.isEmpty()) Color(0xFF81C995) else errorColor,
+                fontSize = 11.sp,
+            )
+        }
+
+        // Toolbar bawah
+        Row(
+            Modifier.fillMaxWidth()
+                .background(Color(0xFF302D38), RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
             GtaButton(
-                "COMPILE SCRIPT",
+                "▶  COMPILE",
                 primary = true,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val d = db
                     if (d == null) {
@@ -458,8 +526,6 @@ fun EditorScreen(
                 },
             )
         }
-
-        Text(status, color = cs.primary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         Column(
             Modifier
                 .fillMaxWidth()
