@@ -336,12 +336,17 @@ fun EditorScreen(
             if (prefix == null || prefix.length < 2) {
                 emptyList()
             } else {
-                db?.keywords?.keys
-                    ?.asSequence()
-                    ?.filter { it.startsWith(prefix) }
-                    ?.sorted()
-                    ?.take(6)
-                    ?.toList() ?: emptyList()
+                db?.let { database ->
+                    database.keywords.entries
+                        .asSequence()
+                        .filter { it.key.startsWith(prefix) }
+                        .mapNotNull { entry ->
+                            database.opcodes[entry.value]?.let { entry.key to it }
+                        }
+                        .sortedBy { it.first }
+                        .take(6)
+                        .toList()
+                } ?: emptyList()
             }
         }
 
@@ -353,15 +358,19 @@ fun EditorScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 autocompleteSuggestions.forEach { suggestion ->
+                    val word = suggestion.first
+                    val opcode = suggestion.second
+
                     TextButton(
                         onClick = {
                             val cursor = text.selection.start.coerceIn(0, text.text.length)
                             val lineStart = text.text.substring(0, cursor).lastIndexOf('\n') + 1
                             val linePrefix = text.text.substring(lineStart, cursor)
-                            val tokenStart = lineStart + linePrefix.takeWhile { it.isWhitespace() }.length
+                            val tokenStart = lineStart +
+                                linePrefix.takeWhile { it.isWhitespace() }.length
 
-                            val newText = text.text.replaceRange(tokenStart, cursor, "$suggestion ")
-                            val newCursor = tokenStart + suggestion.length + 1
+                            val newText = text.text.replaceRange(tokenStart, cursor, "$word ")
+                            val newCursor = tokenStart + word.length + 1
                             val updated = TextFieldValue(
                                 newText,
                                 androidx.compose.ui.text.TextRange(newCursor),
@@ -376,7 +385,31 @@ fun EditorScreen(
                             text = updated
                         },
                     ) {
-                        Text(suggestion, color = cs.primary)
+                        Column {
+                            Text(
+                                "${opcode.name.ifBlank { word }}  ${opcode.id.toString(16).uppercase().padStart(4, '0')}",
+                                color = cs.primary,
+                                fontSize = 12.sp,
+                            )
+                            if (opcode.description.isNotBlank()) {
+                                Text(
+                                    opcode.description,
+                                    color = cs.onSurface.copy(alpha = 0.7f),
+                                    fontSize = 10.sp,
+                                    maxLines = 2,
+                                )
+                            }
+                            if (opcode.specs.isNotEmpty()) {
+                                Text(
+                                    opcode.specs.joinToString(", ") {
+                                        "${it.type} (${it.source.name.lowercase()})"
+                                    },
+                                    color = cs.onSurface.copy(alpha = 0.6f),
+                                    fontSize = 10.sp,
+                                    maxLines = 2,
+                                )
+                            }
+                        }
                     }
                 }
             }

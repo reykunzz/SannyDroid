@@ -37,6 +37,8 @@ class Opcode(
     /** parameter number (1-based) -> placeholder letter (d, g, p, s, ...) */
     val letters: Map<Int, Char>,
     val firstWord: String?,
+    var name: String = "",
+    var description: String = "",
 ) {
     var specs: List<ParamSpec> = emptyList()
     val variadic: Boolean get() = argc < 0
@@ -204,6 +206,8 @@ object OpcodeDbLoader {
                 val o = cmd.jsonObject
                 val id = o["id"]?.jsonPrimitive?.content?.toIntOrNull(16) ?: continue
                 val op = ops[id] ?: continue
+                op.name = o["name"]?.jsonPrimitive?.content ?: ""
+                op.description = o["short_desc"]?.jsonPrimitive?.content ?: ""
                 val specs = ArrayList<ParamSpec>()
                 for (key in listOf("input", "output")) {
                     val arr = o[key] as? JsonArray ?: continue
