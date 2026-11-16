@@ -398,8 +398,8 @@ fun EditorScreen(
         }
 
         val editorScrollState = rememberScrollState()
-        val lineCount = text.text.count { it == '\\n' } + 1
-        val lineNumbers = (1..lineCount).joinToString("\\n") { it.toString() }
+        val lineCount = text.text.count { it == '\n' } + 1
+        val lineNumbers = (1..lineCount).joinToString("\n") { it.toString() }
 
         Row(
             modifier = Modifier
