@@ -278,40 +278,30 @@ fun EditorScreen(
     ) {
         // Header IDE
         Row(
-            Modifier.fillMaxWidth()
-                .background(cs.surface, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            Modifier
+                .fillMaxWidth()
+                .background(cs.surface, RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column {
-                Text(
-                    "REY XSA",
-                    color = cs.primary,
-                    fontSize = 10.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                )
-                Text(
-                    APP_NAME,
-                    color = cs.onSurface,
-                    fontSize = 25.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                )
-                Text(
-                    "CLEO Script Editor",
-                    color = cs.onSurface.copy(alpha = 0.65f),
-                    fontSize = 12.sp,
-                )
+                Text("REY XSA", color = cs.primary, fontSize = 10.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                Text(APP_NAME, color = cs.onSurface, fontSize = 23.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                Text("CLEO SCRIPT EDITOR",
+                    color = cs.onSurface.copy(alpha = 0.60f), fontSize = 10.sp)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { openLauncher.launch(arrayOf("*/*")) }) {
-                    Text("▱", fontSize = 22.sp, color = cs.onSurface)
+                    Text("Buka", fontSize = 12.sp, color = cs.onSurface)
                 }
                 TextButton(onClick = { saveSource.launch("script.txt") }) {
-                    Text("▣", fontSize = 22.sp, color = cs.onSurface)
+                    Text("Simpan", fontSize = 12.sp, color = cs.onSurface)
                 }
                 TextButton(onClick = { showAppearance = true }) {
-                    Text("⚙", fontSize = 21.sp, color = cs.onSurface)
+                    Text("⚙", fontSize = 20.sp, color = cs.primary)
                 }
             }
         }
@@ -319,26 +309,21 @@ fun EditorScreen(
         // Tab file dan kontrol editor
         Row(
             Modifier.fillMaxWidth()
-                .background(Color(0xFF302D38))
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .background(cs.surfaceVariant)
+                .padding(start = 12.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "</>",
-                color = cs.primary,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(horizontal = 6.dp),
-            )
-            Text(
-                "main.csa",
-                color = Color.White,
-                fontSize = 13.sp,
-                modifier = Modifier.weight(1f).padding(start = 4.dp),
-            )
-            TextButton(onClick = { undo() }) { Text("↶", color = Color.White, fontSize = 20.sp) }
-            TextButton(onClick = { redo() }) { Text("↻", color = Color.White, fontSize = 20.sp) }
-            TextButton(onClick = { showAppearance = true }) { Text("⚙", color = Color.White) }
+            Text("</>", color = cs.primary, fontSize = 14.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text("main.csa", color = cs.onSurface, fontSize = 13.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                modifier = Modifier.weight(1f).padding(start = 9.dp))
+            TextButton(onClick = { undo() }) {
+                Text("↶", color = cs.onSurface, fontSize = 20.sp)
+            }
+            TextButton(onClick = { redo() }) {
+                Text("↻", color = cs.onSurface, fontSize = 20.sp)
+            }
         }
 
         val autocompleteSuggestions = remember(text, db) {
@@ -480,16 +465,18 @@ fun EditorScreen(
         // Status bar
         Row(
             Modifier.fillMaxWidth()
-                .background(Color(0xFF302D38))
-                .padding(horizontal = 10.dp, vertical = 7.dp),
+                .background(cs.surfaceVariant)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(status, color = cs.onSurface.copy(alpha = 0.7f), fontSize = 11.sp)
+            Text(status, color = cs.onSurface.copy(alpha = 0.75f),
+                fontSize = 11.sp, modifier = Modifier.weight(1f))
             Text(
                 "${errors.size} errors",
                 color = if (errors.isEmpty()) Color(0xFF81C995) else errorColor,
                 fontSize = 11.sp,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
 
@@ -553,6 +540,10 @@ fun EditorScreen(
             onSize = onSize,
             onReset = onReset,
             onClose = { showAppearance = false },
+            onAbout = {
+                showAppearance = false
+                showAbout = true
+            },
         )
     }
 

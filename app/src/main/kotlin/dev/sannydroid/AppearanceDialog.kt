@@ -38,6 +38,7 @@ fun AppearanceDialog(
     onSize: (Float) -> Unit,
     onReset: () -> Unit,
     onClose: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     AlertDialog(
@@ -99,6 +100,13 @@ fun AppearanceDialog(
                         }
                         Text(t.name, modifier = Modifier.padding(start = 10.dp))
                     }
+                }
+
+                TextButton(
+                    onClick = onAbout,
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    GtaText("Tentang SannyDroid", color = cs.primary)
                 }
             }
         },
