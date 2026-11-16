@@ -337,6 +337,62 @@ fun EditorScreen(
             GtaButton("Tentang", onClick = { showAbout = true }, modifier = Modifier.padding(start = 6.dp))
         }
 
+        val autocompleteSuggestions = remember(text, db) {
+            val cursor = text.selection.start.coerceIn(0, text.text.length)
+            val lineStart = text.text.substring(0, cursor).lastIndexOf('\n') + 1
+            val linePrefix = text.text.substring(lineStart, cursor)
+            val match = Regex("""^\s*([A-Za-z_][A-Za-z0-9_]*)$""").matchEntire(linePrefix)
+            val prefix = match?.groupValues?.get(1)?.lowercase()
+
+            if (prefix == null || prefix.length < 2) {
+                emptyList()
+            } else {
+                db?.keywords?.keys
+                    ?.asSequence()
+                    ?.filter { it.startsWith(prefix) }
+                    ?.sorted()
+                    ?.take(6)
+                    ?.toList() ?: emptyList()
+            }
+        }
+
+        if (autocompleteSuggestions.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                autocompleteSuggestions.forEach { suggestion ->
+                    TextButton(
+                        onClick = {
+                            val cursor = text.selection.start.coerceIn(0, text.text.length)
+                            val lineStart = text.text.substring(0, cursor).lastIndexOf('\n') + 1
+                            val linePrefix = text.text.substring(lineStart, cursor)
+                            val tokenStart = lineStart + linePrefix.takeWhile { it.isWhitespace() }.length
+
+                            val newText = text.text.replaceRange(tokenStart, cursor, "$suggestion ")
+                            val newCursor = tokenStart + suggestion.length + 1
+                            val updated = TextFieldValue(
+                                newText,
+                                androidx.compose.ui.text.TextRange(newCursor),
+                            )
+
+                            while (history.size > historyIndex + 1) {
+                                history.removeAt(history.lastIndex)
+                            }
+                            history.add(updated)
+                            if (history.size > 100) history.removeAt(0)
+                            historyIndex = history.lastIndex
+                            text = updated
+                        },
+                    ) {
+                        Text(suggestion, color = cs.primary)
+                    }
+                }
+            }
+        }
+
         BasicTextField(
             value = text,
             onValueChange = { value ->
