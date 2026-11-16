@@ -189,6 +189,10 @@ fun EditorScreen(
     val uriHandler = LocalUriHandler.current
     val cs = MaterialTheme.colorScheme
     var text by remember { mutableStateOf(TextFieldValue(SAMPLE)) }
+    var showFind by remember { mutableStateOf(false) }
+    var findQuery by remember { mutableStateOf("") }
+    var replaceQuery by remember { mutableStateOf("") }
+    var matchIndex by remember { mutableStateOf(0) }
 
     val history = remember {
         mutableStateListOf(TextFieldValue(SAMPLE))
@@ -323,6 +327,165 @@ fun EditorScreen(
             }
             TextButton(onClick = { redo() }) {
                 Text("↻", color = cs.onSurface, fontSize = 20.sp)
+            }
+        }
+
+        // Find & Replace
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(cs.surfaceVariant)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = {
+                showFind = !showFind
+                if (!showFind) {
+                    findQuery = ""
+                    replaceQuery = ""
+                    matchIndex = 0
+                }
+            }) {
+                Text(if (showFind) "Tutup Cari" else "⌕ Cari", color = cs.primary)
+            }
+        }
+
+        val findMatches = remember(text.text, findQuery) {
+            if (findQuery.isBlank()) {
+                emptyList()
+            } else {
+                val found = mutableListOf<Int>()
+                var position = 0
+                while (position <= text.text.length - findQuery.length) {
+                    val index = text.text.indexOf(findQuery, position, ignoreCase = true)
+                    if (index < 0) break
+                    found.add(index)
+                    position = index + findQuery.length
+                }
+                found
+            }
+        }
+
+        if (showFind) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(cs.surfaceVariant)
+                    .padding(8.dp),
+            ) {
+                BasicTextField(
+                    value = findQuery,
+                    onValueChange = {
+                        findQuery = it
+                        matchIndex = 0
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(cs.surface, RoundedCornerShape(6.dp))
+                        .padding(10.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(color = cs.onSurface, fontSize = 14.sp),
+                    decorationBox = { inner ->
+                        if (findQuery.isEmpty()) {
+                            Text("Cari teks atau opcode...", color = cs.onSurface.copy(alpha = 0.5f))
+                        }
+                        inner()
+                    },
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (findMatches.isEmpty()) "0 hasil"
+                        else "${matchIndex + 1} / ${findMatches.size}",
+                        color = cs.onSurface,
+                        fontSize = 12.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = {
+                        if (findMatches.isNotEmpty()) {
+                            matchIndex = (matchIndex - 1 + findMatches.size) % findMatches.size
+                            val start = findMatches[matchIndex]
+                            text = text.copy(
+                                selection = androidx.compose.ui.text.TextRange(
+                                    start, start + findQuery.length
+                                )
+                            )
+                        }
+                    }) { Text("↑") }
+                    TextButton(onClick = {
+                        if (findMatches.isNotEmpty()) {
+                            matchIndex = (matchIndex + 1) % findMatches.size
+                            val start = findMatches[matchIndex]
+                            text = text.copy(
+                                selection = androidx.compose.ui.text.TextRange(
+                                    start, start + findQuery.length
+                                )
+                            )
+                        }
+                    }) { Text("↓") }
+                }
+
+                BasicTextField(
+                    value = replaceQuery,
+                    onValueChange = { replaceQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(cs.surface, RoundedCornerShape(6.dp))
+                        .padding(10.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(color = cs.onSurface, fontSize = 14.sp),
+                    decorationBox = { inner ->
+                        if (replaceQuery.isEmpty()) {
+                            Text("Ganti dengan...", color = cs.onSurface.copy(alpha = 0.5f))
+                        }
+                        inner()
+                    },
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = {
+                        if (findMatches.isNotEmpty()) {
+                            val index = matchIndex.coerceIn(0, findMatches.lastIndex)
+                            val start = findMatches[index]
+                            val end = start + findQuery.length
+                            val updated = TextFieldValue(
+                                text.text.replaceRange(start, end, replaceQuery),
+                                androidx.compose.ui.text.TextRange(start + replaceQuery.length)
+                            )
+                            while (history.size > historyIndex + 1) {
+                                history.removeAt(history.lastIndex)
+                            }
+                            history.add(updated)
+                            if (history.size > 100) history.removeAt(0)
+                            historyIndex = history.lastIndex
+                            text = updated
+                            matchIndex = 0
+                        }
+                    }) { Text("Ganti") }
+
+                    TextButton(onClick = {
+                        if (findQuery.isNotEmpty() && findMatches.isNotEmpty()) {
+                            val updatedText = text.text.replace(
+                                findQuery, replaceQuery, ignoreCase = true
+                            )
+                            val updated = TextFieldValue(updatedText)
+                            while (history.size > historyIndex + 1) {
+                                history.removeAt(history.lastIndex)
+                            }
+                            history.add(updated)
+                            if (history.size > 100) history.removeAt(0)
+                            historyIndex = history.lastIndex
+                            text = updated
+                            matchIndex = 0
+                        }
+                    }) { Text("Ganti Semua") }
+                }
             }
         }
 
