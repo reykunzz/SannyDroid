@@ -35,6 +35,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +50,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -180,6 +186,32 @@ fun EditorScreen(
     val uriHandler = LocalUriHandler.current
     val cs = MaterialTheme.colorScheme
     var text by remember { mutableStateOf(TextFieldValue(SAMPLE)) }
+
+    val history = remember {
+        mutableStateListOf(TextFieldValue(SAMPLE))
+    }
+    var historyIndex by remember { mutableStateOf(0) }
+
+    val undo: () -> Unit = {
+        if (historyIndex > 0) {
+            historyIndex--
+            text = history[historyIndex]
+        }
+    }
+
+    val redo: () -> Unit = {
+        if (historyIndex < history.lastIndex) {
+            historyIndex++
+            text = history[historyIndex]
+        }
+    }
+
+    val resetHistory: (TextFieldValue) -> Unit = { value ->
+        history.clear()
+        history.add(value)
+        historyIndex = 0
+        text = value
+    }
     var errors by remember { mutableStateOf(listOf<String>()) }
     var status by remember { mutableStateOf("Memuat database opcode...") }
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
@@ -202,7 +234,7 @@ fun EditorScreen(
         if (uri != null) {
             try {
                 val s = ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
-                text = TextFieldValue(s)
+                resetHistory(TextFieldValue(s))
                 errors = emptyList()
             } catch (e: Exception) {
                 status = "Gagal membuka file: ${e.message}"
@@ -267,6 +299,16 @@ fun EditorScreen(
                 modifier = Modifier.padding(start = 6.dp),
             )
             GtaButton(
+                "Undo",
+                onClick = { undo() },
+                modifier = Modifier.padding(start = 6.dp),
+            )
+            GtaButton(
+                "Redo",
+                onClick = { redo() },
+                modifier = Modifier.padding(start = 6.dp),
+            )
+            GtaButton(
                 "Compile",
                 primary = true,
                 modifier = Modifier.padding(start = 6.dp),
@@ -296,9 +338,46 @@ fun EditorScreen(
 
         BasicTextField(
             value = text,
-            onValueChange = { text = it },
+            onValueChange = { value ->
+                if (value.text != text.text) {
+                    while (history.size > historyIndex + 1) {
+                        history.removeAt(history.lastIndex)
+                    }
+
+                    history.add(value)
+
+                    if (history.size > 100) {
+                        history.removeAt(0)
+                    }
+
+                    historyIndex = history.lastIndex
+                } else if (history.isNotEmpty()) {
+                    history[historyIndex] = value
+                }
+
+                text = value
+            },
             modifier = Modifier
                 .weight(1f)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown &&
+                        event.isCtrlPressed
+                    ) {
+                        when (event.key) {
+                            Key.Z -> {
+                                undo()
+                                true
+                            }
+                            Key.Y -> {
+                                redo()
+                                true
+                            }
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+                }
                 .fillMaxWidth()
                 .background(theme.background)
                 .padding(8.dp)
