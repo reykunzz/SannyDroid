@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -274,67 +276,45 @@ fun EditorScreen(
             .fillMaxSize()
             .padding(8.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(R.drawable.logo),
-                contentDescription = "Logo $APP_NAME",
-                modifier = Modifier.size(52.dp),
-            )
-            Column(Modifier.padding(start = 10.dp)) {
-                GtaText(APP_NAME, fontSize = 30.sp, shadow = true)
-                GtaText("oleh $DEVELOPER_NAME", fontSize = 14.sp, color = cs.primary)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Text(
+                    "REY XSA",
+                    color = cs.primary,
+                    fontSize = 10.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                )
+                GtaText(APP_NAME, fontSize = 25.sp, shadow = true)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                GtaButton("Buka", onClick = { openLauncher.launch(arrayOf("*/*")) })
+                GtaButton(
+                    "Simpan",
+                    onClick = { saveSource.launch("script.txt") },
+                    modifier = Modifier.padding(start = 5.dp),
+                )
             }
         }
-        SunsetBar()
 
         Row(
             Modifier
                 .fillMaxWidth()
+                .padding(vertical = 5.dp)
+                .background(cs.surface, RoundedCornerShape(8.dp))
                 .horizontalScroll(rememberScrollState())
-                .padding(vertical = 4.dp),
+                .padding(horizontal = 5.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            GtaButton("Buka", onClick = { openLauncher.launch(arrayOf("*/*")) })
-            GtaButton(
-                "Simpan",
-                onClick = { saveSource.launch("script.txt") },
-                modifier = Modifier.padding(start = 6.dp),
-            )
-            GtaButton(
-                "Undo",
-                onClick = { undo() },
-                modifier = Modifier.padding(start = 6.dp),
-            )
-            GtaButton(
-                "Redo",
-                onClick = { redo() },
-                modifier = Modifier.padding(start = 6.dp),
-            )
-            GtaButton(
-                "Compile",
-                primary = true,
-                modifier = Modifier.padding(start = 6.dp),
-                onClick = {
-                    val d = db
-                    if (d == null) {
-                        status = "Database belum siap"
-                    } else {
-                        val res = Compiler(d).compile(text.text)
-                        errors = res.errors.map { it.toString() }
-                        val b = res.bytes
-                        compiled = b
-                        val unknown = res.errors.filter { it.kind == ErrorKind.UNKNOWN_COMMAND }
-                        if (unknown.isNotEmpty()) unknownItems = unknown.map { explainUnknown(d, it) }
-                        if (b != null) {
-                            status = "Compile berhasil: ${b.size} byte"
-                            saveBinary.launch("script${res.extension}")
-                        } else {
-                            status = "Compile gagal: ${res.errors.size} kesalahan"
-                        }
-                    }
-                },
-            )
-            GtaButton("Tampilan", onClick = { showAppearance = true }, modifier = Modifier.padding(start = 6.dp))
-            GtaButton("Tentang", onClick = { showAbout = true }, modifier = Modifier.padding(start = 6.dp))
+            Text("main.csa", color = cs.primary, fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 8.dp))
+            TextButton(onClick = { undo() }) { Text("Undo") }
+            TextButton(onClick = { redo() }) { Text("Redo") }
+            TextButton(onClick = { showAppearance = true }) { Text("Tema") }
+            TextButton(onClick = { showAbout = true }) { Text("Tentang") }
         }
 
         val autocompleteSuggestions = remember(text, db) {
@@ -449,6 +429,36 @@ fun EditorScreen(
             visualTransformation = remember(keywords, constants, theme) { Highlighter(keywords, constants, theme) },
         )
 
+        Row(
+            Modifier.fillMaxWidth().padding(top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GtaButton(
+                "COMPILE SCRIPT",
+                primary = true,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    val d = db
+                    if (d == null) {
+                        status = "Database belum siap"
+                    } else {
+                        val res = Compiler(d).compile(text.text)
+                        errors = res.errors.map { it.toString() }
+                        val b = res.bytes
+                        compiled = b
+                        val unknown = res.errors.filter { it.kind == ErrorKind.UNKNOWN_COMMAND }
+                        if (unknown.isNotEmpty()) unknownItems = unknown.map { explainUnknown(d, it) }
+                        if (b != null) {
+                            status = "Compile berhasil: ${b.size} byte"
+                            saveBinary.launch("script${res.extension}")
+                        } else {
+                            status = "Compile gagal: ${res.errors.size} kesalahan"
+                        }
+                    }
+                },
+            )
+        }
+
         Text(status, color = cs.primary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         Column(
             Modifier
@@ -501,7 +511,7 @@ fun EditorScreen(
             text = {
                 Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                     Text("Versi $APP_VERSION")
-                    Text("Pengembang: $DEVELOPER_NAME")
+                    Text("Pengembang: Rey xsa")
                     Text("Sumber kode: $REPO_URL", fontSize = 12.sp)
                     GtaText("\nSumber dan kredit", fontSize = 16.sp, color = cs.primary, modifier = Modifier.padding(top = 4.dp))
                     Text(
