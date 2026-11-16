@@ -2,7 +2,14 @@ package sb
 
 import java.io.ByteArrayOutputStream
 
-class CompileError(val line: Int, val msg: String) {
+enum class ErrorKind { GENERAL, UNKNOWN_COMMAND }
+
+class CompileError(
+    val line: Int,
+    val msg: String,
+    val kind: ErrorKind = ErrorKind.GENERAL,
+    val text: String = "",
+) {
     override fun toString() = "baris $line: $msg"
 }
 
@@ -16,7 +23,11 @@ class Compiler(private val db: OpcodeDb) {
     fun compile(source: String): CompileResult = Session(db).run(source)
 }
 
-private class Err(message: String) : Exception(message)
+private class Err(
+    message: String,
+    val kind: ErrorKind = ErrorKind.GENERAL,
+    val text: String = "",
+) : Exception(message)
 
 private enum class K { INT, FLOAT, GLOBAL, LOCAL, LABEL, SQ, DQ, IDENT, OTHER }
 
@@ -53,7 +64,7 @@ private class Session(private val db: OpcodeDb) {
             try {
                 handleLine(raw)
             } catch (e: Err) {
-                errors.add(CompileError(curLine, e.message ?: "kesalahan"))
+                errors.add(CompileError(curLine, e.message ?: "kesalahan", e.kind, e.text))
             }
         }
         val bytes = out.toByteArray()
@@ -205,7 +216,7 @@ private class Session(private val db: OpcodeDb) {
 
         val hit: Hit
         if (forced != null) {
-            val op = db.opcodes[forced] ?: throw Err("opcode %04X tidak dikenal".format(forced))
+            val op = db.opcodes[forced] ?: throw Err("opcode %04X tidak dikenal".format(forced), ErrorKind.UNKNOWN_COMMAND, line)
             hit = when {
                 rest.isEmpty() -> Hit(op, emptyList(), emptyList())
                 else -> tryMatch(op, rest) ?: positional(op, splitOperands(rest))
@@ -223,7 +234,7 @@ private class Session(private val db: OpcodeDb) {
             } else if (hits.isNotEmpty()) {
                 throw Err("tipe operand tidak cocok dengan varian opcode mana pun: $rest")
             } else {
-                val kwId = db.keywords[word] ?: throw Err("perintah tidak dikenali: $rest")
+                val kwId = db.keywords[word] ?: throw Err("perintah tidak dikenali: $rest", ErrorKind.UNKNOWN_COMMAND, line)
                 val op = db.opcodes[kwId] ?: throw Err("keyword '$word' mengacu ke opcode %04X yang tidak ada".format(kwId))
                 hit = positional(op, splitOperands(rest.substring(word.length)))
             }

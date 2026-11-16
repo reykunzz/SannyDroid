@@ -6,6 +6,27 @@ enum class Src { ANY, GLOBAL, LOCAL, LITERAL }
 
 data class ParamSpec(val type: String, val source: Src)
 
+data class Suggestion(val word: String, val usage: String)
+
+private val PLACEHOLDER = Regex("%(\\d+)([a-zA-Z])([^%]*)%")
+
+private fun editDistance(a: String, b: String): Int {
+    val d = Array(a.length + 1) { IntArray(b.length + 1) }
+    for (i in 0..a.length) d[i][0] = i
+    for (j in 0..b.length) d[0][j] = j
+    for (i in 1..a.length) {
+        for (j in 1..b.length) {
+            val c = if (a[i - 1] == b[j - 1]) 0 else 1
+            var v = minOf(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c)
+            if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1]) {
+                v = minOf(v, d[i - 2][j - 2] + 1)
+            }
+            d[i][j] = v
+        }
+    }
+    return d[a.length][b.length]
+}
+
 class Opcode(
     val id: Int,
     val argc: Int,
@@ -19,6 +40,17 @@ class Opcode(
 ) {
     var specs: List<ParamSpec> = emptyList()
     val variadic: Boolean get() = argc < 0
+
+    /** Bentuk pola yang mudah dibaca, mis. "wait <nilai> ms". */
+    fun friendly(): String = pattern.replace(PLACEHOLDER) { m ->
+        when (m.groupValues[2][0]) {
+            'p' -> "@label"
+            'g' -> "'KUNCI'"
+            's', 'k' -> "'teks'"
+            'o', 'm' -> "model"
+            else -> "nilai"
+        }
+    }
 }
 
 class OpcodeDb(
@@ -43,6 +75,38 @@ class OpcodeDb(
     }
 
     fun candidates(word: String): List<Opcode> = (byWord[word] ?: emptyList()) + generic
+
+    /** Perintah yang ejaannya paling mirip dengan [word] (untuk pesan salah ketik). */
+    fun suggest(word: String, max: Int = 3): List<Suggestion> {
+        val w = word.lowercase()
+        if (w.isEmpty()) return emptyList()
+        val limit = maxOf(1, minOf(3, w.length / 3))
+        val scored = ArrayList<Pair<Int, String>>()
+        val seen = HashSet<String>()
+        for (k in keywords.keys) {
+            if (seen.add(k)) {
+                val d = editDistance(w, k)
+                if (d <= limit) scored.add(d to k)
+            }
+        }
+        for (k in byWord.keys) {
+            if (seen.add(k)) {
+                val d = editDistance(w, k)
+                if (d <= limit) scored.add(d to k)
+            }
+        }
+        scored.sortWith(compareBy({ it.first }, { it.second }))
+        val out = ArrayList<Suggestion>()
+        val usages = HashSet<String>()
+        for ((_, cand) in scored) {
+            val id = keywords[cand]
+            val op = (if (id != null) opcodes[id] else null) ?: byWord[cand]?.firstOrNull() ?: continue
+            val usage = op.friendly()
+            if (usages.add(usage)) out.add(Suggestion(cand, usage))
+            if (out.size >= max) break
+        }
+        return out
+    }
 }
 
 object OpcodeDbLoader {

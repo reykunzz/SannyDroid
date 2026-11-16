@@ -1,35 +1,40 @@
 package dev.sannydroid
 
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 
-class Highlighter(private val keywords: Set<String>) : VisualTransformation {
+class Highlighter(
+    private val keywords: Set<String>,
+    private val constants: Set<String>,
+    private val theme: EditorTheme,
+) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText =
         TransformedText(highlight(text.text), OffsetMapping.Identity)
 
-    private fun highlight(s: String): AnnotatedString = buildAnnotatedString {
+    fun highlight(s: String): AnnotatedString = buildAnnotatedString {
         append(s)
-        fun paint(re: Regex, color: Color) {
-            for (m in re.findAll(s)) addStyle(SpanStyle(color = color), m.range.first, m.range.last + 1)
+        fun paint(re: Regex, token: String) {
+            val st = theme.span(token)
+            for (m in re.findAll(s)) addStyle(st, m.range.first, m.range.last + 1)
         }
-        paint(NUMBER, Color(0xFFB5CEA8))
-        paint(VARIABLE, Color(0xFF9CDCFE))
-        paint(LABEL_REF, Color(0xFFDCDCAA))
-        paint(LABEL_DEF, Color(0xFFDCDCAA))
-        paint(OPCODE_ID, Color(0xFFC586C0))
+        paint(NUMBER, "numbers")
+        paint(VARIABLE, "variables")
+        paint(LABEL_REF, "labels")
+        paint(LABEL_DEF, "labels")
+        paint(OPCODE_ID, "keywords")
+        val cmd = theme.span("commands")
+        val const = theme.span("constants")
         for (m in WORD.findAll(s)) {
-            if (m.value.lowercase() in keywords) {
-                addStyle(SpanStyle(color = Color(0xFF569CD6)), m.range.first, m.range.last + 1)
-            }
+            val w = m.value.lowercase()
+            if (w in keywords) addStyle(cmd, m.range.first, m.range.last + 1)
+            else if (w in constants) addStyle(const, m.range.first, m.range.last + 1)
         }
-        paint(STRING, Color(0xFFCE9178))
-        paint(DIRECTIVE, Color(0xFFC586C0))
-        paint(COMMENT, Color(0xFF6A9955))
+        paint(STRING, "strings")
+        paint(DIRECTIVE, "directives")
+        paint(COMMENT, "comments")
     }
 
     private companion object {

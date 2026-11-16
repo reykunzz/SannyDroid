@@ -58,4 +58,14 @@ class CompilerTest {
         val res = Compiler(db()).compile("0000:\njump @NOPE\n")
         assertTrue(res.errors.isNotEmpty())
     }
+
+    @Test
+    fun unknownCommandHasKindAndSuggestion() {
+        val d = db()
+        val res = Compiler(d).compile("0000:\nwiat 250\n")
+        val e = res.errors.single()
+        assertEquals(ErrorKind.UNKNOWN_COMMAND, e.kind)
+        assertEquals("wiat 250", e.text)
+        assertTrue(d.suggest("wiat").any { it.word == "wait" })
+    }
 }

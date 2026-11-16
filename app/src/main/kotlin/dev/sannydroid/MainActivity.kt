@@ -8,24 +8,30 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -46,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import sb.Compiler
+import sb.ErrorKind
 import sb.OpcodeDb
 import sb.OpcodeDbLoader
 
@@ -60,11 +69,7 @@ private const val SAMPLE = "{\$CLEO .csa}\n" +
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
-                EditorScreen()
-            }
-        }
+        setContent { App() }
     }
 }
 
@@ -83,16 +88,105 @@ private fun loadDb(ctx: Context): OpcodeDb = OpcodeDbLoader.load(
     readAsset(ctx, "sa_mobile/sa_mobile.json"),
 )
 
+private fun schemeFor(t: EditorTheme): ColorScheme {
+    val accent = t.accent ?: t.tokens["keywords"]?.color ?: t.tokens["commands"]?.color ?: t.foreground
+    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    val panel = lerp(t.background, if (t.isDark) Color.White else Color.Black, 0.07f)
+    return if (t.isDark) {
+        darkColorScheme(
+            primary = accent,
+            onPrimary = onAccent,
+            background = panel,
+            onBackground = t.foreground,
+            surface = panel,
+            onSurface = t.foreground,
+        )
+    } else {
+        lightColorScheme(
+            primary = accent,
+            onPrimary = onAccent,
+            background = panel,
+            onBackground = t.foreground,
+            surface = panel,
+            onSurface = t.foreground,
+        )
+    }
+}
+
 @Composable
-fun EditorScreen() {
+fun App() {
+    val ctx = LocalContext.current
+    val prefs = remember { AppPrefs(ctx) }
+    val themes = remember { ThemeLoader.loadAll(ctx) }
+    val gta = remember { loadGtaFont(ctx) }
+    var themeId by remember { mutableStateOf(prefs.themeId) }
+    var fontKey by remember { mutableStateOf(prefs.fontKey) }
+    var fontSize by remember { mutableStateOf(prefs.fontSize) }
+
+    val theme = themes.firstOrNull { it.id == themeId }
+        ?: themes.firstOrNull { it.id == DEFAULT_THEME }
+        ?: EditorTheme.fallback()
+
+    CompositionLocalProvider(LocalGtaFont provides gta) {
+    MaterialTheme(colorScheme = schemeFor(theme)) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ) {
+            EditorScreen(
+                themes = themes,
+                theme = theme,
+                fontKey = fontKey,
+                fontSize = fontSize,
+                onTheme = {
+                    themeId = it
+                    prefs.themeId = it
+                },
+                onFont = {
+                    fontKey = it
+                    prefs.fontKey = it
+                },
+                onSize = {
+                    fontSize = it
+                    prefs.fontSize = it
+                },
+                onReset = {
+                    themeId = DEFAULT_THEME
+                    fontKey = DEFAULT_FONT
+                    fontSize = DEFAULT_FONT_SIZE
+                    prefs.themeId = DEFAULT_THEME
+                    prefs.fontKey = DEFAULT_FONT
+                    prefs.fontSize = DEFAULT_FONT_SIZE
+                },
+            )
+        }
+    }
+    }
+}
+
+@Composable
+fun EditorScreen(
+    themes: List<EditorTheme>,
+    theme: EditorTheme,
+    fontKey: String,
+    fontSize: Float,
+    onTheme: (String) -> Unit,
+    onFont: (String) -> Unit,
+    onSize: (Float) -> Unit,
+    onReset: () -> Unit,
+) {
     val ctx = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val cs = MaterialTheme.colorScheme
     var text by remember { mutableStateOf(TextFieldValue(SAMPLE)) }
     var errors by remember { mutableStateOf(listOf<String>()) }
     var status by remember { mutableStateOf("Memuat database opcode...") }
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
     var compiled by remember { mutableStateOf<ByteArray?>(null) }
     var showAbout by remember { mutableStateOf(false) }
+    var showAppearance by remember { mutableStateOf(false) }
+    var unknownItems by remember { mutableStateOf<List<UnknownItem>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         try {
@@ -137,30 +231,45 @@ fun EditorScreen() {
         }
     }
 
+    val keywords = remember(db) { db?.keywords?.keys ?: emptySet() }
+    val constants = remember(db) { db?.constants?.keys?.map { it.lowercase() }?.toSet() ?: emptySet() }
+    val btnPad = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+    val errorColor = if (theme.isDark) Color(0xFFF48771) else Color(0xFFC62828)
+
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF1E1E1E))
             .padding(8.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = "Logo $APP_NAME",
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(52.dp),
             )
             Column(Modifier.padding(start = 10.dp)) {
-                Text(APP_NAME, color = Color.White, fontSize = 18.sp)
-                Text("oleh $DEVELOPER_NAME", color = Color(0xFF9CDCFE), fontSize = 12.sp)
+                GtaText(APP_NAME, fontSize = 30.sp, shadow = true)
+                GtaText("oleh $DEVELOPER_NAME", fontSize = 14.sp, color = cs.primary)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            OutlinedButton(onClick = { openLauncher.launch(arrayOf("*/*")) }) { Text("Buka") }
-            OutlinedButton(
+        SunsetBar()
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(vertical = 4.dp),
+        ) {
+            GtaButton("Buka", onClick = { openLauncher.launch(arrayOf("*/*")) })
+            GtaButton(
+                "Simpan",
                 onClick = { saveSource.launch("script.txt") },
                 modifier = Modifier.padding(start = 6.dp),
-            ) { Text("Simpan") }
-            Button(
+            )
+            GtaButton(
+                "Compile",
+                primary = true,
+                modifier = Modifier.padding(start = 6.dp),
                 onClick = {
                     val d = db
                     if (d == null) {
@@ -170,6 +279,8 @@ fun EditorScreen() {
                         errors = res.errors.map { it.toString() }
                         val b = res.bytes
                         compiled = b
+                        val unknown = res.errors.filter { it.kind == ErrorKind.UNKNOWN_COMMAND }
+                        if (unknown.isNotEmpty()) unknownItems = unknown.map { explainUnknown(d, it) }
                         if (b != null) {
                             status = "Compile berhasil: ${b.size} byte"
                             saveBinary.launch("script${res.extension}")
@@ -178,43 +289,70 @@ fun EditorScreen() {
                         }
                     }
                 },
-                modifier = Modifier.padding(start = 6.dp),
-            ) { Text("Compile") }
-            TextButton(onClick = { showAbout = true }, modifier = Modifier.padding(start = 6.dp)) { Text("Tentang") }
+            )
+            GtaButton("Tampilan", onClick = { showAppearance = true }, modifier = Modifier.padding(start = 6.dp))
+            GtaButton("Tentang", onClick = { showAbout = true }, modifier = Modifier.padding(start = 6.dp))
         }
 
-        val keywords = remember(db) { db?.keywords?.keys ?: emptySet() }
         BasicTextField(
             value = text,
             onValueChange = { text = it },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .background(Color(0xFF252526))
+                .background(theme.background)
                 .padding(8.dp)
                 .verticalScroll(rememberScrollState()),
-            textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, color = Color(0xFFD4D4D4)),
-            cursorBrush = SolidColor(Color.White),
-            visualTransformation = remember(keywords) { Highlighter(keywords) },
+            textStyle = TextStyle(
+                fontFamily = fontFor(fontKey),
+                fontSize = fontSize.sp,
+                lineHeight = (fontSize * 1.4f).sp,
+                color = theme.foreground,
+            ),
+            cursorBrush = SolidColor(theme.foreground),
+            visualTransformation = remember(keywords, constants, theme) { Highlighter(keywords, constants, theme) },
         )
 
-        Text(status, color = Color(0xFF9CDCFE), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        Text(status, color = cs.primary, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         Column(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = 120.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            for (e in errors) Text(e, color = Color(0xFFF48771), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            for (e in errors) Text(e, color = errorColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
+    }
+
+    if (unknownItems.isNotEmpty()) {
+        UnknownCommandDialog(unknownItems) { unknownItems = emptyList() }
+    }
+
+    if (showAppearance) {
+        AppearanceDialog(
+            themes = themes,
+            theme = theme,
+            keywords = keywords,
+            constants = constants,
+            fontKey = fontKey,
+            fontSize = fontSize,
+            onTheme = onTheme,
+            onFont = onFont,
+            onSize = onSize,
+            onReset = onReset,
+            onClose = { showAppearance = false },
+        )
     }
 
     if (showAbout) {
         AlertDialog(
             onDismissRequest = { showAbout = false },
-            confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Tutup") } },
+            containerColor = cs.surface,
+            titleContentColor = cs.onSurface,
+            textContentColor = cs.onSurface,
+            confirmButton = { TextButton(onClick = { showAbout = false }) { GtaText("Tutup", color = cs.primary) } },
             dismissButton = {
-                TextButton(onClick = { uriHandler.openUri(SANNY_URL) }) { Text("Situs Sanny Builder") }
+                TextButton(onClick = { uriHandler.openUri(SANNY_URL) }) { GtaText("Situs Sanny Builder", color = cs.primary) }
             },
             icon = {
                 Image(
@@ -223,21 +361,22 @@ fun EditorScreen() {
                     modifier = Modifier.size(96.dp),
                 )
             },
-            title = { Text(APP_NAME) },
+            title = { GtaText(APP_NAME, fontSize = 24.sp) },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                     Text("Versi $APP_VERSION")
                     Text("Pengembang: $DEVELOPER_NAME")
                     Text("Sumber kode: $REPO_URL", fontSize = 12.sp)
-                    Text(
-                        "\nSumber dan kredit",
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
+                    GtaText("\nSumber dan kredit", fontSize = 16.sp, color = cs.primary, modifier = Modifier.padding(top = 4.dp))
                     Text(
                         "Data opcode, daftar perintah, konstanta, template, dan tema warna " +
                             "berasal dari Sanny Builder 4.2.0 (sannybuilder.com), karya Seemann dan " +
                             "para kontributornya. Hak cipta data tersebut tetap milik pembuat aslinya.",
+                        fontSize = 12.sp,
+                    )
+                    Text(
+                        "\nFont DejaVu Sans Mono (lisensi Bitstream Vera/DejaVu) dan Liberation Mono " +
+                            "(SIL Open Font License) disertakan beserta berkas lisensinya.",
                         fontSize = 12.sp,
                     )
                     Text(
