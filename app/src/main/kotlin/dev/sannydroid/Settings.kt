@@ -3,7 +3,6 @@ package dev.sannydroid
 import android.content.Context
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 
 const val DEFAULT_THEME = "gta-sa"
 const val DEFAULT_FONT = "dejavu"
@@ -25,31 +24,25 @@ class AppPrefs(ctx: Context) {
         set(v) = sp.edit().putFloat("fontSize", v).apply()
 }
 
-/** key -> nama tampilan */
 val FONT_OPTIONS = listOf(
-    "dejavu" to "DejaVu Sans Mono",
-    "liberation" to "Liberation Mono",
-    "mono" to "Monospace bawaan Android",
+    "dejavu" to "DejaVu Sans Mono (Android)",
+    "liberation" to "Liberation Mono (Android)",
+    "mono" to "Monospace Android",
     "sans" to "Sans-serif",
     "serif" to "Serif",
     "cursive" to "Cursive",
+    "pricedown" to "GTA PriceDown",
 )
 
-private val DejaVuMono = FontFamily(
-    Font(R.font.dejavu_sans_mono, FontWeight.Normal),
-    Font(R.font.dejavu_sans_mono_bold, FontWeight.Bold),
-)
-
-private val LiberationMono = FontFamily(
-    Font(R.font.liberation_mono, FontWeight.Normal),
-    Font(R.font.liberation_mono_bold, FontWeight.Bold),
+private val PriceDown = FontFamily(
+    Font(R.font.pricedown)
 )
 
 fun fontFor(key: String): FontFamily = when (key) {
-    "dejavu" -> DejaVuMono
-    "liberation" -> LiberationMono
+    "pricedown" -> PriceDown
     "sans" -> FontFamily.SansSerif
     "serif" -> FontFamily.Serif
     "cursive" -> FontFamily.Cursive
+    "dejavu", "liberation", "mono" -> FontFamily.Monospace
     else -> FontFamily.Monospace
 }
