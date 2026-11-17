@@ -227,6 +227,7 @@ fun EditorScreen(
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
     var compiled by remember { mutableStateOf<ByteArray?>(null) }
     var showAbout by remember { mutableStateOf(false) }
+    var showOpcodeExplorer by remember { mutableStateOf(false) }
     var showChangelog by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
     var unknownItems by remember { mutableStateOf<List<UnknownItem>>(emptyList()) }
@@ -339,6 +340,10 @@ fun EditorScreen(
                         matchIndex = 0
                     }
                 }) {
+                    TextButton(onClick = { showOpcodeExplorer = true }) {
+                        Text("OP", color = cs.primary, fontSize = 14.sp)
+                    }
+
                     Text("⌕", color = cs.primary, fontSize = 22.sp)
                 }
 
@@ -767,6 +772,15 @@ fun EditorScreen(
 
     if (unknownItems.isNotEmpty()) {
         UnknownCommandDialog(unknownItems) { unknownItems = emptyList() }
+    }
+
+    if (showOpcodeExplorer) {
+        db?.let { database ->
+            OpcodeExplorerDialog(
+                db = database,
+                onDismiss = { showOpcodeExplorer = false },
+            )
+        }
     }
 
     if (showAppearance) {
