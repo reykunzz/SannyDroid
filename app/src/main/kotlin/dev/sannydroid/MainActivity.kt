@@ -224,6 +224,7 @@ fun EditorScreen(
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
     var compiled by remember { mutableStateOf<ByteArray?>(null) }
     var showAbout by remember { mutableStateOf(false) }
+    var showChangelog by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
     var unknownItems by remember { mutableStateOf<List<UnknownItem>>(emptyList()) }
 
@@ -741,6 +742,56 @@ fun EditorScreen(
         )
     }
 
+    if (showChangelog) {
+        AlertDialog(
+            onDismissRequest = { showChangelog = false },
+            containerColor = cs.surface,
+            titleContentColor = cs.onSurface,
+            textContentColor = cs.onSurface,
+            title = { GtaText("What's New", fontSize = 22.sp) },
+            text = {
+                Column(
+                    Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    GtaText("Version 1.7 — Major Update", color = cs.primary)
+                    Text("\nNew Features")
+                    Text(
+                        "• Undo & Redo\n" +
+                        "• Find & Replace\n" +
+                        "• Improved Opcode Autocomplete\n" +
+                        "• Syntax Highlighting"
+                    )
+                    Text("\nImprovements")
+                    Text(
+                        "• Minimalist Editor Toolbar\n" +
+                        "• Improved Editor Interface\n" +
+                        "• Better Editing Experience"
+                    )
+                    GtaText(
+                        "\nVersion 0.0.2 — Initial Release",
+                        color = cs.primary
+                    )
+                    Text("• Initial SannyDroid release\n• Basic CLEO script editing")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showChangelog = false }) {
+                    GtaText("Tutup", color = cs.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showChangelog = false
+                    showAbout = true
+                }) {
+                    GtaText("Kembali", color = cs.primary)
+                }
+            },
+        )
+    }
+
     if (showAbout) {
         AlertDialog(
             onDismissRequest = { showAbout = false },
@@ -761,6 +812,12 @@ fun EditorScreen(
             title = { GtaText(APP_NAME, fontSize = 24.sp) },
             text = {
                 Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    TextButton(onClick = {
+                        showAbout = false
+                        showChangelog = true
+                    }) {
+                        GtaText("What's New  →", color = cs.primary)
+                    }
                     Text("Versi $APP_VERSION")
                     Text("Pengembang: Rey xsa")
                     Text("Sumber kode: $REPO_URL", fontSize = 12.sp)
