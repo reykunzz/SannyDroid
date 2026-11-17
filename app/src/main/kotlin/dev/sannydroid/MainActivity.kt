@@ -47,9 +47,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.input.key.Key
@@ -220,6 +222,7 @@ fun EditorScreen(
         text = value
     }
     var errors by remember { mutableStateOf(listOf<String>()) }
+    val clipboardManager = LocalClipboardManager.current
     var status by remember { mutableStateOf("Memuat database opcode...") }
     var db by remember { mutableStateOf<OpcodeDb?>(null) }
     var compiled by remember { mutableStateOf<ByteArray?>(null) }
@@ -711,10 +714,54 @@ fun EditorScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .heightIn(max = 120.dp)
-                .verticalScroll(rememberScrollState()),
+                .heightIn(max = 170.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         ) {
-            for (e in errors) Text(e, color = errorColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            if (errors.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = {
+                        clipboardManager.setText(
+                            AnnotatedString(errors.joinToString("\n"))
+                        )
+                        status = "Semua error disalin"
+                    }) {
+                        Text("Copy All", color = cs.primary)
+                    }
+
+                    TextButton(onClick = {
+                        errors = emptyList()
+                        status = "Daftar error dibersihkan"
+                    }) {
+                        Text("Clear", color = errorColor)
+                    }
+                }
+
+                for (e in errors) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            e,
+                            color = errorColor,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = {
+                            clipboardManager.setText(AnnotatedString(e))
+                            status = "Error disalin"
+                        }) {
+                            Text("Copy", color = cs.primary)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -761,7 +808,8 @@ fun EditorScreen(
                         "• Undo & Redo\n" +
                         "• Find & Replace\n" +
                         "• Improved Opcode Autocomplete\n" +
-                        "• Syntax Highlighting"
+                        "• Syntax Highlighting\n" +
+                        "• Copy Error, Copy All & Clear Error List"
                     )
                     Text("\nImprovements")
                     Text(
