@@ -310,43 +310,41 @@ fun EditorScreen(
             }
         }
 
-        // Tab file dan kontrol editor
-        Row(
-            Modifier.fillMaxWidth()
-                .background(cs.surfaceVariant)
-                .padding(start = 12.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("</>", color = cs.primary, fontSize = 14.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Text("main.csa", color = cs.onSurface, fontSize = 13.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                modifier = Modifier.weight(1f).padding(start = 9.dp))
-            TextButton(onClick = { undo() }) {
-                Text("↶", color = cs.onSurface, fontSize = 20.sp)
-            }
-            TextButton(onClick = { redo() }) {
-                Text("↻", color = cs.onSurface, fontSize = 20.sp)
-            }
-        }
-
-        // Find & Replace
+        // Toolbar editor minimalis
         Row(
             Modifier
                 .fillMaxWidth()
                 .background(cs.surfaceVariant)
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .padding(horizontal = 12.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            TextButton(onClick = {
-                showFind = !showFind
-                if (!showFind) {
-                    findQuery = ""
-                    replaceQuery = ""
-                    matchIndex = 0
+            Text(
+                "</>",
+                color = cs.primary,
+                fontSize = 18.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    showFind = !showFind
+                    if (!showFind) {
+                        findQuery = ""
+                        replaceQuery = ""
+                        matchIndex = 0
+                    }
+                }) {
+                    Text("⌕", color = cs.primary, fontSize = 22.sp)
                 }
-            }) {
-                Text(if (showFind) "Tutup Cari" else "⌕ Cari", color = cs.primary)
+
+                TextButton(onClick = { undo() }) {
+                    Text("↶", color = cs.onSurface, fontSize = 22.sp)
+                }
+
+                TextButton(onClick = { redo() }) {
+                    Text("↻", color = cs.onSurface, fontSize = 22.sp)
+                }
             }
         }
 
